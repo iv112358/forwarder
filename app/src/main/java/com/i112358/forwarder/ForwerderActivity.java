@@ -9,9 +9,14 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
+import android.widget.EditText;
 import android.widget.Switch;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class ForwerderActivity extends AppCompatActivity {
@@ -19,6 +24,8 @@ public class ForwerderActivity extends AppCompatActivity {
     final String TAG = "Forwarder";
     final private int REQUEST_CODE_ASK_PERMISSIONS = 7632;
     final String SMS_FORWARD_ENABLE = "sms_enabled";
+    final String RECIPIENT_ADDRESS = "recipient_address";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -31,6 +38,9 @@ public class ForwerderActivity extends AppCompatActivity {
         super.onResume();
 
         Log.w(TAG, "onResume called");
+
+        initRecipientField();
+
         SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
         boolean messagesState = _preferences.getBoolean(SMS_FORWARD_ENABLE, false);
         ((Switch)findViewById(R.id.messages_toggler)).setChecked(messagesState);
@@ -77,5 +87,63 @@ public class ForwerderActivity extends AppCompatActivity {
         boolean state = ((Switch)view).isChecked();
         if ( state )
             requestPermission();
+    }
+
+    private void setInfoMessage( final String message )
+    {
+        TextView _messageText = (TextView)findViewById(R.id.errorView);
+        if ( message.isEmpty()) {
+            _messageText.setVisibility(View.GONE);
+        } else {
+            _messageText.setVisibility(View.VISIBLE);
+            _messageText.setText(message);
+        }
+    }
+
+    private void initRecipientField()
+    {
+        SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
+        EditText _recipient = (EditText)findViewById(R.id.recipientField);
+        _recipient.setText(_preferences.getString(RECIPIENT_ADDRESS, ""));
+
+        _recipient.addTextChangedListener(new TextWatcher() {
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                Log.i(TAG, "afterTextChanged " + s);
+                SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
+                _preferences.edit().putString(RECIPIENT_ADDRESS, s.toString()).apply();
+                isValidEmail(true);
+            }
+        });
+
+        isValidEmail(true);
+    }
+
+    public final boolean isValidEmail( boolean showError )
+    {
+        SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
+        String target = _preferences.getString(RECIPIENT_ADDRESS, "");
+        Log.i(TAG, "check " + target);
+        if ( target == null || target.isEmpty() ) {
+            if ( showError )
+                setInfoMessage("Enter recipient email");
+            return false;
+        } else {
+            boolean result = android.util.Patterns.EMAIL_ADDRESS.matcher(target).matches();
+            if ( showError && !result )
+                setInfoMessage("Enter correct email");
+            else
+                setInfoMessage("");
+            return result;
+        }
     }
 }
