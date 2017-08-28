@@ -52,7 +52,8 @@ public class MailSender extends javax.mail.Authenticator {
         return new PasswordAuthentication(user, password);
     }
 
-    public synchronized void sendMail(String subject, String body, String sender, String recipients) throws Exception {
+    public synchronized boolean sendMail(String subject, String body, String sender, String recipients) throws Exception {
+        boolean sentResult = true;
         try {
             MimeMessage message = new MimeMessage(session);
             DataHandler handler = new DataHandler(new ByteArrayDataSource(body.getBytes(), "text/plain"));
@@ -69,9 +70,11 @@ public class MailSender extends javax.mail.Authenticator {
             else
                 message.setRecipient(Message.RecipientType.TO, new InternetAddress(recipients));
             Transport.send(message);
-        } catch (Exception e) {
-            Log.e("info", e.toString());
+        } catch ( Exception e ) {
+            sentResult = false;
+            Log.e("Forwarder", e.toString());
         }
+        return sentResult;
     }
 
     public void addAttachment(String filename) throws Exception {
@@ -82,7 +85,7 @@ public class MailSender extends javax.mail.Authenticator {
         _multipart.addBodyPart(messageBodyPart);
     }
 
-    public class ByteArrayDataSource implements DataSource {
+    private class ByteArrayDataSource implements DataSource {
         private byte[] data;
         private String type;
 

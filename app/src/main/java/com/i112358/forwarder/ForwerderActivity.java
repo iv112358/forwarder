@@ -34,23 +34,18 @@ public class ForwerderActivity extends AppCompatActivity {
         SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
         boolean messagesState = _preferences.getBoolean(SMS_FORWARD_ENABLE, false);
         ((Switch)findViewById(R.id.messages_toggler)).setChecked(messagesState);
-        requestPermission();
+        if ( messagesState ) {
+            requestPermission();
+        }
     }
 
     private void requestPermission() {
-        SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
-        boolean messagesState = _preferences.getBoolean(SMS_FORWARD_ENABLE, false);
-        if ( messagesState ) {
-            int _hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS);
-            if ( _hasPermission == PackageManager.PERMISSION_GRANTED ) {
-                startService(new Intent(this, ForwarderService.class));
-            } else {
-                _preferences.edit().putBoolean(SMS_FORWARD_ENABLE, false).apply();
-                ((Switch)findViewById(R.id.messages_toggler)).setChecked(false);
-                ActivityCompat.requestPermissions(ForwerderActivity.this, new String[]{Manifest.permission.READ_SMS}, REQUEST_CODE_ASK_PERMISSIONS);
-            }
+        int _hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS);
+        if ( _hasPermission == PackageManager.PERMISSION_GRANTED ) {
+            startService(new Intent(this, ForwarderService.class));
         } else {
-            Log.w(TAG, "Forwarder is disabled");
+            ((Switch)findViewById(R.id.messages_toggler)).setChecked(false);
+            ActivityCompat.requestPermissions(ForwerderActivity.this, new String[]{Manifest.permission.READ_SMS}, REQUEST_CODE_ASK_PERMISSIONS);
         }
     }
 
@@ -59,7 +54,6 @@ public class ForwerderActivity extends AppCompatActivity {
         switch (requestCode) {
             case REQUEST_CODE_ASK_PERMISSIONS:
                 if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    startService(new Intent(this, ForwarderService.class));
                     SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
                     _preferences.edit().putBoolean(SMS_FORWARD_ENABLE, true).apply();
                     ((Switch)findViewById(R.id.messages_toggler)).setChecked(true);

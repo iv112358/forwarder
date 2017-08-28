@@ -13,9 +13,15 @@ import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.widget.Toast;
 
+import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
+
 public class ForwarderService extends Service {
     final private String TAG = "Forwarder";
-    final private String LAST_MESSAGE = "lastMessage";
+    final private String LAST_MESSAGE_TIME = "lastMessageTime";
+    final private String MESSAGES_TO_SEND = "messagesToSend";
+    final private String REPEAT_DELAY = "on_error_repeat_delay";
 
     public ForwarderService() {
     }
@@ -43,7 +49,6 @@ public class ForwarderService extends Service {
         throw new UnsupportedOperationException("Not yet implemented");
     }
 
-    // Main logic
     void searchNewContent()
     {
         final int _hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS);
@@ -51,21 +56,42 @@ public class ForwarderService extends Service {
             Log.e(TAG, "No permission granted");
             return;
         }
-
-        final String _newMessages = findNewMessages();
+        Log.d(TAG, "start send intent");
+        serchNewMessages();
+        SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
+        final String _newMessages = _preferences.getString(MESSAGES_TO_SEND, "");
         if ( !_newMessages.isEmpty() ) {
-            Log.i(TAG, _newMessages);
+            Log.i(TAG, "Send text " + _newMessages.length());
             new Thread(new Runnable() {
                 public void run() {
+                    boolean sentResult = true;
                     try {
                         com.i112358.forwarder.MailSender sender = new com.i112358.forwarder.MailSender(
                                 "iv7enov@gmail.com",
                                 "4ZyRBDQg%QQ");
-                        sender.sendMail("Test mail", _newMessages, "iv7enov@gmail.com", "dolgih.iv@gmail.com");
-                        Log.i(TAG, "Messages sent successfully");
+                        sentResult = sender.sendMail("Test mail", _newMessages, "iv7enov@gmail.com", "dolgih.iv@gmail.com");
                     } catch (Exception e) {
+                        sentResult = false;
+                        Log.e("Forwarder", e.toString());
                         Toast.makeText(getApplicationContext(), "Error", Toast.LENGTH_LONG).show();
                     } finally {
+                        SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
+                        if ( sentResult ) {
+                            Log.i(TAG, "Messages sent successfully");
+                            _preferences.edit().remove(MESSAGES_TO_SEND).apply();
+                        } else {
+                            final long repeatTime = _preferences.getLong(REPEAT_DELAY, 15000);
+                            final Context _context = ForwarderService.this;
+                            Timer timer = new Timer();
+                            timer.schedule(new TimerTask() {
+                                @Override
+                                public void run() {
+                                    Log.i(TAG, "repeat send messages");
+                                    _context.startService(new Intent(_context, ForwarderService.class));
+                                }
+                            }, repeatTime);
+                        }
+
                         Log.d(TAG, "Stop forwarder Service");
                         stopSelf();
                     }
@@ -76,10 +102,11 @@ public class ForwarderService extends Service {
         }
     }
 
-    String findNewMessages()
+    void serchNewMessages()
     {
         SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
-        long previousSmsTime = _preferences.getLong(LAST_MESSAGE, 0);
+        String _newMessagesToSend = _preferences.getString(MESSAGES_TO_SEND, "");
+        long previousSmsTime = _preferences.getLong(LAST_MESSAGE_TIME, 0);
         long _newSmsTimeForSave = previousSmsTime;
         Log.i(TAG, "Last message saved time " + previousSmsTime);
 
@@ -89,7 +116,7 @@ public class ForwarderService extends Service {
         int _totalMessages = 0;
 
         if ( cursor != null && cursor.getCount() > 0 ) {
-            if ( cursor.moveToFirst() ) { // must check the result to prevent exception
+            if ( cursor.moveToFirst() ) {
                 do {
                     _totalMessages++;
                     long _newMessageTime = Long.parseLong(cursor.getString(cursor.getColumnIndexOrThrow("date")));
@@ -114,19 +141,17 @@ public class ForwarderService extends Service {
                 }
                 */
                 } while ( cursor.moveToNext() );
-            } else {
-                Log.i(TAG, "Sms list empty");
             }
             cursor.close();
         }
+        _newMessagesToSend += _messageBuilder.toString();
 
         SharedPreferences.Editor _editor = _preferences.edit();
-        _editor.putLong(LAST_MESSAGE, _newSmsTimeForSave);
+        _editor.putString(MESSAGES_TO_SEND, _newMessagesToSend);
+        _editor.putLong(LAST_MESSAGE_TIME, _newSmsTimeForSave);
         _editor.apply();
 
         Log.i(TAG, "Found new messages: " + _counter + "/" + _totalMessages);
         Log.i(TAG, "Update last message time " + _newSmsTimeForSave);
-
-        return _messageBuilder.toString();
     }
 }
