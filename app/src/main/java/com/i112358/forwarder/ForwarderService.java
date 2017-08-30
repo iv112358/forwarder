@@ -54,6 +54,7 @@ public class ForwarderService extends Service {
         final int _hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS);
         if ( _hasPermission != PackageManager.PERMISSION_GRANTED ) {
             Log.e(TAG, "No permission granted");
+            stopSelf();
             return;
         }
         Log.d(TAG, "start send intent");
@@ -80,6 +81,7 @@ public class ForwarderService extends Service {
                             Log.i(TAG, "Messages sent successfully");
                             _preferences.edit().remove(MESSAGES_TO_SEND).apply();
                         } else {
+                            Log.e(TAG, "Messages NOT sent. Trying to repeat");
                             final long repeatTime = _preferences.getLong(REPEAT_DELAY, 15000);
                             final Context _context = ForwarderService.this;
                             Timer timer = new Timer();
@@ -91,14 +93,13 @@ public class ForwarderService extends Service {
                                 }
                             }, repeatTime);
                         }
-
-                        Log.d(TAG, "Stop forwarder Service");
                         stopSelf();
                     }
                 }
             }).start();
         } else {
             Log.w(TAG, "No new messages");
+            stopSelf();
         }
     }
 

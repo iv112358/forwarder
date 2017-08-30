@@ -5,6 +5,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -14,6 +17,7 @@ import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -46,6 +50,27 @@ public class ForwerderActivity extends AppCompatActivity {
         ((Switch)findViewById(R.id.messages_toggler)).setChecked(messagesState);
         if ( messagesState ) {
             requestPermission();
+        }
+
+        requestBattaryOptimization();
+    }
+
+    private void requestBattaryOptimization() {
+
+        Button _battaryButton = (Button)findViewById(R.id.battaryButton);
+
+        if ( android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M ) {
+
+            String packageName = getApplicationContext().getPackageName();
+            PowerManager pm = (PowerManager) getApplicationContext().getSystemService(Context.POWER_SERVICE);
+            if ( pm.isIgnoringBatteryOptimizations(packageName) ) {
+                _battaryButton.setText("Check for battary settings");
+            }
+            else {
+                _battaryButton.setText("Disable doze mode");
+            }
+        } else {
+            _battaryButton.setVisibility(View.GONE);
         }
     }
 
@@ -87,6 +112,25 @@ public class ForwerderActivity extends AppCompatActivity {
         boolean state = ((Switch)view).isChecked();
         if ( state )
             requestPermission();
+    }
+
+    public void onBattarySettings( View view )
+    {
+        Log.d(TAG, "change battary settings");
+        if ( android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M ) {
+            Intent intent = new Intent();
+            String packageName = getApplicationContext().getPackageName();
+            PowerManager pm = (PowerManager) getApplicationContext().getSystemService(Context.POWER_SERVICE);
+            if ( pm.isIgnoringBatteryOptimizations(packageName) ) {
+                intent.setAction(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+            }
+            else {
+                intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                intent.setData(Uri.parse("package:" + packageName));
+
+            }
+            getApplicationContext().startActivity(intent);
+        }
     }
 
     private void setInfoMessage( final String message )
