@@ -13,7 +13,6 @@ import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.widget.Toast;
 
-import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -57,20 +56,32 @@ public class ForwarderService extends Service {
             stopSelf();
             return;
         }
-        Log.d(TAG, "start send intent");
-        serchNewMessages();
+
         SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
+        boolean _messagesState = _preferences.getBoolean(Utility.SMS_FORWARD_ENABLE, false);
+        if ( !_messagesState ) {
+            Log.w(TAG, "Forwarder is disabled");
+            stopSelf();
+            return;
+        }
+
+        serchNewMessages();
+
         final String _newMessages = _preferences.getString(MESSAGES_TO_SEND, "");
         if ( !_newMessages.isEmpty() ) {
-            Log.i(TAG, "Send text " + _newMessages.length());
+            Log.i(TAG, "try to Send messages " + _newMessages.length());
             new Thread(new Runnable() {
                 public void run() {
                     boolean sentResult = true;
                     try {
-                        com.i112358.forwarder.MailSender sender = new com.i112358.forwarder.MailSender(
+                        SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
+
+                        MailSender sender = new MailSender(
                                 "iv7enov@gmail.com",
                                 "4ZyRBDQg%QQ");
-                        sentResult = sender.sendMail("Test mail", _newMessages, "iv7enov@gmail.com", "dolgih.iv@gmail.com");
+
+                        String _recipient = _preferences.getString(Utility.RECIPIENT_ADDRESS, "");
+                        sentResult = sender.sendMail("Test mail", _newMessages, "iv7enov@gmail.com", _recipient);
                     } catch (Exception e) {
                         sentResult = false;
                         Log.e("Forwarder", e.toString());
@@ -88,7 +99,6 @@ public class ForwarderService extends Service {
                             timer.schedule(new TimerTask() {
                                 @Override
                                 public void run() {
-                                    Log.i(TAG, "repeat send messages");
                                     _context.startService(new Intent(_context, ForwarderService.class));
                                 }
                             }, repeatTime);

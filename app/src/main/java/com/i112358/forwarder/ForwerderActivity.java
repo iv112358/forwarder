@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.PowerManager;
 import android.provider.Settings;
@@ -14,6 +16,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.text.method.PasswordTransformationMethod;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -25,15 +28,14 @@ import android.widget.Toast;
 
 public class ForwerderActivity extends AppCompatActivity {
 
-    final String TAG = "Forwarder";
-    final private int REQUEST_CODE_ASK_PERMISSIONS = 7632;
-    final String SMS_FORWARD_ENABLE = "sms_enabled";
-    final String RECIPIENT_ADDRESS = "recipient_address";
 
+    final private int REQUEST_CODE_ASK_PERMISSIONS = 7632;
+
+    Switch m_forwarderEnable = null;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.w(TAG, "onCreate called");
+        Log.w(Utility.TAG, "onCreate called");
         setContentView(R.layout.activity_forwerder);
     }
 
@@ -41,17 +43,20 @@ public class ForwerderActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        Log.w(TAG, "onResume called");
+        Log.w(Utility.TAG, "onResume called");
+
+        m_forwarderEnable = ((Switch)findViewById(R.id.messages_toggler));
 
         initRecipientField();
 
+        initPasswordField();
+
         SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
-        boolean messagesState = _preferences.getBoolean(SMS_FORWARD_ENABLE, false);
-        ((Switch)findViewById(R.id.messages_toggler)).setChecked(messagesState);
+        boolean messagesState = _preferences.getBoolean(Utility.SMS_FORWARD_ENABLE, false);
+        m_forwarderEnable.setChecked(messagesState);
         if ( messagesState ) {
             requestPermission();
         }
-
         requestBattaryOptimization();
     }
 
@@ -65,8 +70,10 @@ public class ForwerderActivity extends AppCompatActivity {
             PowerManager pm = (PowerManager) getApplicationContext().getSystemService(Context.POWER_SERVICE);
             if ( pm.isIgnoringBatteryOptimizations(packageName) ) {
                 _battaryButton.setText("Check for battary settings");
+                _battaryButton.setTextColor(0xde000000);
             }
             else {
+                _battaryButton.setTextColor(Color.RED);
                 _battaryButton.setText("Disable doze mode");
             }
         } else {
@@ -77,9 +84,11 @@ public class ForwerderActivity extends AppCompatActivity {
     private void requestPermission() {
         int _hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS);
         if ( _hasPermission == PackageManager.PERMISSION_GRANTED ) {
+            boolean _forwarderEnabled = m_forwarderEnable.isChecked();
+            SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
+            _preferences.edit().putBoolean(Utility.SMS_FORWARD_ENABLE, _forwarderEnabled).apply();
             startService(new Intent(this, ForwarderService.class));
         } else {
-            ((Switch)findViewById(R.id.messages_toggler)).setChecked(false);
             ActivityCompat.requestPermissions(ForwerderActivity.this, new String[]{Manifest.permission.READ_SMS}, REQUEST_CODE_ASK_PERMISSIONS);
         }
     }
@@ -90,14 +99,14 @@ public class ForwerderActivity extends AppCompatActivity {
             case REQUEST_CODE_ASK_PERMISSIONS:
                 if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
-                    _preferences.edit().putBoolean(SMS_FORWARD_ENABLE, true).apply();
-                    ((Switch)findViewById(R.id.messages_toggler)).setChecked(true);
+                    _preferences.edit().putBoolean(Utility.SMS_FORWARD_ENABLE, true).apply();
+                    m_forwarderEnable.setChecked(true);
                     Toast.makeText(ForwerderActivity.this, "Permission Granted", Toast.LENGTH_SHORT)
                             .show();
                 } else {
                     SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
-                    _preferences.edit().putBoolean(SMS_FORWARD_ENABLE, false).apply();
-                    ((Switch)findViewById(R.id.messages_toggler)).setChecked(false);
+                    _preferences.edit().putBoolean(Utility.SMS_FORWARD_ENABLE, false).apply();
+                    m_forwarderEnable.setChecked(false);
                     Toast.makeText(ForwerderActivity.this, "Permission Denied. Activate manually.", Toast.LENGTH_SHORT)
                             .show();
                 }
@@ -112,11 +121,16 @@ public class ForwerderActivity extends AppCompatActivity {
         boolean state = ((Switch)view).isChecked();
         if ( state )
             requestPermission();
+        else {
+            SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
+            _preferences.edit().putBoolean(Utility.SMS_FORWARD_ENABLE, false).apply();
+            m_forwarderEnable.setChecked(false);
+        }
     }
 
     public void onBattarySettings( View view )
     {
-        Log.d(TAG, "change battary settings");
+        Log.d(Utility.TAG, "change battary settings");
         if ( android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M ) {
             Intent intent = new Intent();
             String packageName = getApplicationContext().getPackageName();
@@ -144,11 +158,17 @@ public class ForwerderActivity extends AppCompatActivity {
         }
     }
 
+    private void initPasswordField() {
+        EditText password = (EditText) findViewById(R.id.passwordField);
+        password.setTypeface(Typeface.DEFAULT);
+        password.setTransformationMethod(new PasswordTransformationMethod());
+    }
+
     private void initRecipientField()
     {
         SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
         EditText _recipient = (EditText)findViewById(R.id.recipientField);
-        _recipient.setText(_preferences.getString(RECIPIENT_ADDRESS, ""));
+        _recipient.setText(_preferences.getString(Utility.RECIPIENT_ADDRESS, ""));
 
         _recipient.addTextChangedListener(new TextWatcher() {
 
@@ -162,9 +182,8 @@ public class ForwerderActivity extends AppCompatActivity {
 
             @Override
             public void afterTextChanged(Editable s) {
-                Log.i(TAG, "afterTextChanged " + s);
                 SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
-                _preferences.edit().putString(RECIPIENT_ADDRESS, s.toString()).apply();
+                _preferences.edit().putString(Utility.RECIPIENT_ADDRESS, s.toString()).apply();
                 isValidEmail(true);
             }
         });
@@ -175,8 +194,8 @@ public class ForwerderActivity extends AppCompatActivity {
     public final boolean isValidEmail( boolean showError )
     {
         SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
-        String target = _preferences.getString(RECIPIENT_ADDRESS, "");
-        Log.i(TAG, "check " + target);
+        String target = _preferences.getString(Utility.RECIPIENT_ADDRESS, "");
+        Log.i(Utility.TAG, "check " + target);
         if ( target == null || target.isEmpty() ) {
             if ( showError )
                 setInfoMessage("Enter recipient email");
