@@ -17,8 +17,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class ForwarderService extends Service {
-    final private String TAG = "Forwarder";
-    final private String LAST_MESSAGE_TIME = "lastMessageTime";
+
     final private String MESSAGES_TO_SEND = "messagesToSend";
     final private String REPEAT_DELAY = "on_error_repeat_delay";
 
@@ -29,10 +28,10 @@ public class ForwarderService extends Service {
     public void onCreate()
     {
         super.onCreate();
-        Log.i(TAG, "Forwarder Service is started");
+        Log.i(Utility.TAG, "Forwarder Service is created");
     }
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(TAG, "onStartCommand");
+        Log.d(Utility.TAG, "onStartCommand");
 
         searchNewContent();
         return super.onStartCommand(intent, flags, startId);
@@ -40,7 +39,7 @@ public class ForwarderService extends Service {
 
     public void onDestroy() {
         super.onDestroy();
-        Log.d(TAG, "onDestroy");
+        Log.d(Utility.TAG, "onDestroy");
     }
 
     @Override
@@ -52,7 +51,7 @@ public class ForwarderService extends Service {
     {
         final int _hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS);
         if ( _hasPermission != PackageManager.PERMISSION_GRANTED ) {
-            Log.e(TAG, "No permission granted");
+            Log.e(Utility.TAG, "No permission granted");
             stopSelf();
             return;
         }
@@ -60,7 +59,7 @@ public class ForwarderService extends Service {
         SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
         boolean _messagesState = _preferences.getBoolean(Utility.SMS_FORWARD_ENABLE, false);
         if ( !_messagesState ) {
-            Log.w(TAG, "Forwarder is disabled");
+            Log.w(Utility.TAG, "Forwarder is disabled");
             stopSelf();
             return;
         }
@@ -69,19 +68,23 @@ public class ForwarderService extends Service {
 
         final String _newMessages = _preferences.getString(MESSAGES_TO_SEND, "");
         if ( !_newMessages.isEmpty() ) {
-            Log.i(TAG, "try to Send messages " + _newMessages.length());
+            Log.i(Utility.TAG, "try to Send messages " + _newMessages.length());
             new Thread(new Runnable() {
                 public void run() {
                     boolean sentResult = true;
                     try {
                         SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
 
-                        MailSender sender = new MailSender(
-                                "iv7enov@gmail.com",
-                                "4ZyRBDQg%QQ");
+                        final String _senderAddress = _preferences.getString(Utility.SENDER_ADDRESS, "");
+                        final String _senderPassword = _preferences.getString(Utility.SENDER_PASSWORD, "");
+                        final String _recipient = _preferences.getString(Utility.RECIPIENT_ADDRESS, "");
 
-                        String _recipient = _preferences.getString(Utility.RECIPIENT_ADDRESS, "");
-                        sentResult = sender.sendMail("Test mail", _newMessages, "iv7enov@gmail.com", _recipient);
+                        Log.i(Utility.TAG, "" + _senderAddress + " " + _senderPassword + " " + _recipient);
+                        MailSender sender = new MailSender(_senderAddress, _senderPassword);
+                        sentResult = sender.sendMail("New messages",
+                                _newMessages,
+                                _senderAddress,
+                                _recipient);
                     } catch (Exception e) {
                         sentResult = false;
                         Log.e("Forwarder", e.toString());
@@ -89,11 +92,11 @@ public class ForwarderService extends Service {
                     } finally {
                         SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
                         if ( sentResult ) {
-                            Log.i(TAG, "Messages sent successfully");
+                            Log.i(Utility.TAG, "Messages sent successfully");
                             _preferences.edit().remove(MESSAGES_TO_SEND).apply();
                             stopSelf();
                         } else {
-                            Log.w(TAG, "Messages NOT sent. Trying to repeat");
+                            Log.w(Utility.TAG, "Messages NOT sent. Trying to repeat");
                             final long repeatTime = _preferences.getLong(REPEAT_DELAY, 60000);
                             final Context _context = ForwarderService.this;
                             Timer timer = new Timer();
@@ -108,7 +111,7 @@ public class ForwarderService extends Service {
                 }
             }).start();
         } else {
-            Log.w(TAG, "No new messages");
+            Log.w(Utility.TAG, "No new messages");
             stopSelf();
         }
     }
@@ -117,9 +120,8 @@ public class ForwarderService extends Service {
     {
         SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
         String _newMessagesToSend = _preferences.getString(MESSAGES_TO_SEND, "");
-        long previousSmsTime = _preferences.getLong(LAST_MESSAGE_TIME, 0);
+        long previousSmsTime = _preferences.getLong(Utility.LAST_MESSAGE_TIME, 0);
         long _newSmsTimeForSave = previousSmsTime;
-        Log.i(TAG, "Last message saved time " + previousSmsTime);
 
         Cursor cursor = getContentResolver().query(Uri.parse("content://sms/inbox"), null, null, null, null);
         StringBuilder _messageBuilder = new StringBuilder();
@@ -159,10 +161,10 @@ public class ForwarderService extends Service {
 
         SharedPreferences.Editor _editor = _preferences.edit();
         _editor.putString(MESSAGES_TO_SEND, _newMessagesToSend);
-        _editor.putLong(LAST_MESSAGE_TIME, _newSmsTimeForSave);
+        _editor.putLong(Utility.LAST_MESSAGE_TIME, _newSmsTimeForSave);
         _editor.apply();
 
-        Log.i(TAG, "Found new messages: " + _counter + "/" + _totalMessages);
-        Log.i(TAG, "Update last message time " + _newSmsTimeForSave);
+        Log.i(Utility.TAG, "Found new messages: " + _counter + "/" + _totalMessages);
+        Log.i(Utility.TAG, "Update last message time " + _newSmsTimeForSave);
     }
 }

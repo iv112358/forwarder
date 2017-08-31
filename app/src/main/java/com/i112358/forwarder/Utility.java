@@ -11,4 +11,6 @@ public final class Utility {
     final public static String SENDER_PASSWORD = "sender_password";
     final public static String SMS_FORWARD_ENABLE = "sms_enabled";
     final public static String TAG = "Forwarder";
+    final public static String ERROR_MESSAGE = "error_message";
+    final public static String LAST_MESSAGE_TIME = "lastMessageTime";
 }

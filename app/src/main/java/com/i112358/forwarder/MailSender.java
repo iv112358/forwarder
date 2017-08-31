@@ -72,7 +72,7 @@ public class MailSender extends javax.mail.Authenticator {
             Transport.send(message);
         } catch ( Exception e ) {
             sentResult = false;
-            Log.e("Forwarder", e.toString());
+            Log.e(Utility.TAG, e.toString());
         }
         return sentResult;
     }

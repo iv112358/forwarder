@@ -26,6 +26,10 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 public class ForwerderActivity extends AppCompatActivity {
 
 
@@ -48,6 +52,8 @@ public class ForwerderActivity extends AppCompatActivity {
         m_forwarderEnable = ((Switch)findViewById(R.id.messages_toggler));
 
         initRecipientField();
+        initTextField(R.id.senderField, Utility.SENDER_ADDRESS, false);
+        initTextField(R.id.passwordField, Utility.SENDER_PASSWORD, false);
 
         initPasswordField();
 
@@ -147,14 +153,21 @@ public class ForwerderActivity extends AppCompatActivity {
         }
     }
 
-    private void setInfoMessage( final String message )
+    private void setInfoMessage( final String userMessage )
     {
+        SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
         TextView _messageText = (TextView)findViewById(R.id.errorView);
-        if ( message.isEmpty()) {
-            _messageText.setVisibility(View.GONE);
+        if ( userMessage.isEmpty()) {
+            String _message = _preferences.getString(Utility.ERROR_MESSAGE, "");
+            if ( _message.isEmpty() ) {
+                long _lastMessageTime = _preferences.getLong(Utility.LAST_MESSAGE_TIME, 0);
+                SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ROOT);
+                _message = "Last sent message " + formatter.format(new Date(_lastMessageTime));
+            }
+            _messageText.setText(_message);
         } else {
             _messageText.setVisibility(View.VISIBLE);
-            _messageText.setText(message);
+            _messageText.setText(userMessage);
         }
     }
 
@@ -162,6 +175,35 @@ public class ForwerderActivity extends AppCompatActivity {
         EditText password = (EditText) findViewById(R.id.passwordField);
         password.setTypeface(Typeface.DEFAULT);
         password.setTransformationMethod(new PasswordTransformationMethod());
+    }
+
+    private void initTextField( final int fieldId, final String savedTag, final boolean validate )
+    {
+        SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
+        EditText _editableText = (EditText)findViewById(fieldId);
+        _editableText.setText(_preferences.getString(savedTag, ""));
+
+        _editableText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                SharedPreferences _preferences = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
+                _preferences.edit().putString(savedTag, s.toString()).apply();
+
+                if ( validate )
+                    isValidEmail(true);
+            }
+        });
+
+        if ( validate )
+            isValidEmail(true);
     }
 
     private void initRecipientField()
