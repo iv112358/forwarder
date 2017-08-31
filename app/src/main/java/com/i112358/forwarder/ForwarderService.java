@@ -91,9 +91,10 @@ public class ForwarderService extends Service {
                         if ( sentResult ) {
                             Log.i(TAG, "Messages sent successfully");
                             _preferences.edit().remove(MESSAGES_TO_SEND).apply();
+                            stopSelf();
                         } else {
-                            Log.e(TAG, "Messages NOT sent. Trying to repeat");
-                            final long repeatTime = _preferences.getLong(REPEAT_DELAY, 15000);
+                            Log.w(TAG, "Messages NOT sent. Trying to repeat");
+                            final long repeatTime = _preferences.getLong(REPEAT_DELAY, 60000);
                             final Context _context = ForwarderService.this;
                             Timer timer = new Timer();
                             timer.schedule(new TimerTask() {
@@ -103,7 +104,6 @@ public class ForwarderService extends Service {
                                 }
                             }, repeatTime);
                         }
-                        stopSelf();
                     }
                 }
             }).start();
