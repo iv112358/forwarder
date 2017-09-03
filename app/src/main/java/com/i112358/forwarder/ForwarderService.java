@@ -20,6 +20,7 @@ public class ForwarderService extends Service {
 
     final private String MESSAGES_TO_SEND = "messagesToSend";
     final private String REPEAT_DELAY = "on_error_repeat_delay";
+    private Timer m_timer = null;
 
     public ForwarderService() {
     }
@@ -99,8 +100,8 @@ public class ForwarderService extends Service {
                             Log.w(Utility.TAG, "Messages NOT sent. Trying to repeat");
                             final long repeatTime = _preferences.getLong(REPEAT_DELAY, 60000);
                             final Context _context = ForwarderService.this;
-                            Timer timer = new Timer();
-                            timer.schedule(new TimerTask() {
+                            m_timer = new Timer();
+                            m_timer.schedule(new TimerTask() {
                                 @Override
                                 public void run() {
                                     _context.startService(new Intent(_context, ForwarderService.class));

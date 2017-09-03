@@ -7,6 +7,8 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.PowerManager;
 import android.provider.Settings;
@@ -64,6 +66,13 @@ public class ForwerderActivity extends AppCompatActivity {
             requestPermission();
         }
         requestBattaryOptimization();
+
+        ConnectivityManager manager = (ConnectivityManager)getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo ni = manager.getActiveNetworkInfo();
+        if ( ni == null || ni.isConnected() )
+        {
+            setInfoMessage("Check connection");
+        }
     }
 
     private void requestBattaryOptimization() {
